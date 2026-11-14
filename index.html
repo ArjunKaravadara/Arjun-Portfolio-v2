@@ -1098,6 +1098,8 @@ body.loaded .nav{animation:navIn .55s var(--ease) both}
     <div class="rec-empty rv">
       <p class="rec-big">Real recommendations<br /><span class="script-w">coming soon</span></p>
       <p class="rec-note">Reserved for genuine words from clients &amp; collaborators</p>
+      <a class="rec-btn" href="https://wa.me/919023156807?text=Hi%20Arjun!%20I%27d%20like%20to%20leave%20a%20recommendation%20for%20your%20portfolio%3A%0A%0A%22Write%20your%20recommendation%20here%22%0A%0A%E2%80%94%20Your%20name%2C%20role%20%2F%20company" target="_blank" rel="noopener" aria-label="Leave a recommendation on WhatsApp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0a12 12 0 0 0-10.1 18L0 24l6.2-1.6A12 12 0 1 0 12 0zm0 21.8a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4a9.8 9.8 0 1 1 8.3 4.6zm5.4-7.4c-.3-.2-1.8-.9-2-1s-.5-.2-.7.1-.8 1-.9 1.1-.3.2-.6.1a8 8 0 0 1-4-3.5c-.3-.5.3-.5.7-1.6a.6.6 0 0 0 0-.6c-.1-.2-.7-1.6-.9-2.2s-.5-.5-.7-.5h-.6a1.1 1.1 0 0 0-.8.4A3.4 3.4 0 0 0 6 9.7a6 6 0 0 0 1.3 3.1 22 22 0 0 0 3 3.7c1.2 1 2.1 1.5 2.9 1.9a7 7 0 0 0 2.3.6 2.8 2.8 0 0 0 1.9-.5 2.3 2.3 0 0 0 .7-1.6 2 2 0 0 0-.7-1.2z"/></svg><span>Leave a recommendation</span></a>
+      <p class="rec-btn-note">Opens WhatsApp — I read every note myself before it appears here.</p>
     </div>
   </div>
 </section>
@@ -3749,7 +3751,10 @@ video{max-width:100%}
   /* about stats + experience rows breathe at phone size */
   .a-stat{padding:13px 12px}
   .a-stat .n{font-size:1.5rem}
-  .exp-row{padding:24px 4px}
+  /* keep the 38px left gutter from the timeline pass: the shorthand
+     "24px 4px" reset padding-left to 4px, so the rail line + glowing
+     dots painted over the period labels ("PRESENT" -> "SENT") */
+  .exp-row{padding:24px 4px 24px 38px}
   .brand-wide img{aspect-ratio:16/10.5}
   .sec-head h2,.lets{overflow-wrap:break-word}
   .marquee{padding:10px 0}
@@ -3887,6 +3892,94 @@ body.shake-it .hero-photo .photo-frame,body.shake-it .photo-tag,body.shake-it .f
       else attach();
     });
   }
+})();
+</script>
+
+<style>
+/* ================= ROUND: recommendation button + journey dot gutter ================= */
+/* --- "Leave a recommendation" — a quiet outline pill inside the empty
+   state card. Opens WhatsApp to Arjun with the note pre-written, so
+   every word that ever lands here was read by him first. --- */
+.rec-btn{display:inline-flex;align-items:center;gap:10px;margin-top:28px;padding:13px 26px;border:1px solid rgba(216,203,179,.38);border-radius:999px;color:var(--sand-2);font-size:.95rem;font-weight:600;letter-spacing:.01em;text-decoration:none;transition:border-color .3s,background .3s,transform .3s var(--ease)}
+.rec-btn svg{width:18px;height:18px;fill:var(--blue-2);flex:0 0 auto}
+.rec-btn:hover{border-color:rgba(132,168,255,.75);background:rgba(53,116,255,.08);transform:translateY(-1px)}
+.rec-btn:active{transform:translateY(0) scale(.98)}
+.rec-btn-note{margin-top:14px;font-size:.8rem;color:var(--sand-faint);letter-spacing:.02em}
+/* --- Journey timeline overlap fix: the glowing row dot is 24px wide
+   and its halo reaches ~39px, but the text gutter was only 38px — the
+   halo and the .in scale crept over the period labels ("PRESENT" read
+   as "SENT", "2 YEARS" as "EARS"). Widen the gutter so the dot, its
+   ring and its glow all clear the text at every width. --- */
+.exp-row{padding-left:48px}
+.exp-per{position:relative;z-index:2}
+@media(max-width:760px){.exp-row{padding-left:56px}}
+</style>
+
+<script>
+/* ================= FLIP-CARD SFX =================
+   One small exception to the music-only rule, added on request: a
+   soft, short whoosh when a Selected Work card flips. It is gated on
+   the SAME nav speaker toggle as the bg music — #sfxBtn without the
+   .muted class means sound is on; muted means total silence. The
+   sound is synthesised (filtered noise sweep, ~0.26s, low gain), so
+   no extra audio file ships with the page. Flip state is read AFTER
+   the card's own toggle handler has run (it was bound earlier), so
+   the sweep direction matches the flip: up to the back, down back. */
+(function(){
+  'use strict';
+  var cards = document.querySelectorAll('.flip-card');
+  if (!cards.length) return;
+  var actx = null, noiseBuf = null, lastPlay = 0;
+  function soundOn(){
+    var btn = document.getElementById('sfxBtn');
+    return !(btn && btn.classList.contains('muted'));
+  }
+  function ensureCtx(){
+    if (actx) return actx;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { actx = new AC(); } catch (e) { return null; }
+    var len = Math.max(1, Math.floor(actx.sampleRate * 0.35));
+    noiseBuf = actx.createBuffer(1, len, actx.sampleRate);
+    var d = noiseBuf.getChannelData(0);
+    for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    return actx;
+  }
+  function playFlip(toBack){
+    var now = performance.now();
+    if (now - lastPlay < 240) return; /* no machine-gun whooshes */
+    if (!soundOn()) return;
+    var ctx = ensureCtx(); if (!ctx) return;
+    lastPlay = now;
+    if (ctx.state === 'suspended'){ var rp = ctx.resume(); if (rp && rp.catch) rp.catch(function(){}); }
+    try {
+      var t = ctx.currentTime;
+      var src = ctx.createBufferSource(); src.buffer = noiseBuf;
+      var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.1;
+      bp.frequency.setValueAtTime(toBack ? 480 : 1500, t);
+      bp.frequency.exponentialRampToValueAtTime(toBack ? 1500 : 480, t + 0.22);
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.13, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
+      src.connect(bp); bp.connect(g); g.connect(ctx.destination);
+      src.start(t); src.stop(t + 0.3);
+    } catch (e) {}
+  }
+  var hoverable = window.matchMedia('(hover: hover)').matches;
+  cards.forEach(function(card){
+    card.addEventListener('click', function(e){
+      if (e.target.closest && e.target.closest('a')) return; /* link taps don't flip */
+      playFlip(card.classList.contains('flipped'));
+    });
+    card.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ') playFlip(card.classList.contains('flipped'));
+    });
+    if (hoverable){
+      card.addEventListener('mouseenter', function(){ if (!card.classList.contains('flipped')) playFlip(true); });
+      card.addEventListener('mouseleave', function(){ if (!card.classList.contains('flipped')) playFlip(false); });
+    }
+  });
 })();
 </script>
 
